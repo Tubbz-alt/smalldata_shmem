@@ -1,0 +1,20 @@
+cspad_single:
+  detector: cspad
+  common_mode: 0
+  dataType: image
+  thresholdADU: 5
+  n_image: 1
+
+epix_hitfinder:
+  detector: epix_1
+  common_mode: 6
+  dataType: image
+  thresholdADU: 80
+  n_image: -1
+
+epix_photon:
+  detector: epix_1
+  common_mode: 6
+  dataType: photon
+  n_image: -1
+  photonADU: 120

@@ -1,0 +1,5 @@
+#!/bin/bash
+cd /reg/neh/operator_xppopr/live_data/smalldata
+source /reg/g/psdm/etc/psconda.sh
+conda activate ana-1.3.74
+python ./client_timetool.py timetool
