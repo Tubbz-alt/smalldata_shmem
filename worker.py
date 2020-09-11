@@ -79,7 +79,6 @@ def runworker(args):
 
     ds = psana.DataSource(dsname)
     defaultDets = defaultDetectors(hutch)
-    print '****',defaultDets
     #snelson: jet tracking - EBeam not ready yet.
     #defaultDets.append(ebeamDetector('EBeam','ebeam'))
     dets=[] #this list is for user data and ill initially not be used.
@@ -191,6 +190,13 @@ def runworker(args):
                 #print userDict[det._name]
             except:
                 pass
+
+        if len(userDict)!=len(dets):
+            print '**** Missing user data. Skipping evt.',len(dets),len(userDict)
+            continue
+        if len(defData)!=len(defaultDets):
+            print '**** Missing default data. Skipping evt.',len(defaultDets),len(defData)
+            continue
         
         #here we should append the current dict to a dict that will hold a subset of events.
         for key in defData:
