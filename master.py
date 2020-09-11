@@ -89,15 +89,16 @@ def runmaster(nClients):
         else:
             print 'DEBUG: master: ', md.nEvts   
             #append the lists in the dictionary we got from the clients to a big master dict.
+            print('master: mds nEvts sent ', getattr(md, 'nEvts_sent'))
             for mds in md.small.arrayinfolist:
-                print 'mds name: ',mds.name
+                print 'master: mds name: ',mds.name, getattr(md, mds.name).shape
                 if mds.name not in myDict.keys():
                     myDict[mds.name]=getattr(md, mds.name)
                 else:
                     myDict[mds.name]=np.append(myDict[mds.name], getattr(md, mds.name), axis=0)
             #check if dict is aligned
             for mds in md.small.arrayinfolist:
-                if mds.name=='nEvts': continue
+                if mds.name.find('nEvts')>=0: continue
                 if mds.name=='send_timeStamp': continue
                 if myDict[mds.name].shape[0]!=myDict['event_time'].shape[0]:
                     print('We are out of alignment for %s '%mds.name, myDict[mds.name].shape[0],  myDict['event_time'].shape[0])

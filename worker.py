@@ -14,6 +14,28 @@ from smalldata_tools.utilities import checkDet, printMsg
 from smalldata_tools.SmallDataDefaultDetector import epicsDetector
 from smalldata_tools.SmallDataDefaultDetector import ipmDetector
 from smalldata_tools.SmallDataDefaultDetector import ebeamDetector
+from smalldata_tools.roi_rebin import ROIFunc, spectrumFunc
+from smalldata_tools.roi_rebin import projectionFunc, sparsifyFunc
+from smalldata_tools.waveformFunc import getCMPeakFunc, templateFitFunc
+from smalldata_tools.droplet import dropletFunc
+from smalldata_tools.photons import photonFunc
+from smalldata_tools.azimuthalBinning import azimuthalBinning
+
+def getAzIntParams():
+    ret_dict = {'eBeam': 7.75}
+    ret_dict['epix10k2M_center'] = [-673.5,86.6]
+    ret_dict['epix10k2M_dis_to_sam'] = 77.
+    return ret_dict
+
+def getEpix10k2MROIs():
+    #from from image.
+    return [ [[2,3], [10,75], [120,190]] ,
+             [[5,6], [10,75], [120,190]] ]
+
+def getEpixROIs():
+    return [ [59,538,250,675] ]
+
+
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -62,18 +84,34 @@ def runworker(args):
     #defaultDets.append(ebeamDetector('EBeam','ebeam'))
     dets=[] #this list is for user data and ill initially not be used.
 
-    jungfrauname='jungfrau4M'
-    #ROIs=[ [[0,1], [0,152],[0,1024]], 
-    #       [[0,1], [0,318], [508,613]] ]
-    #have_jungfrau = checkDet(ds.env(), jungfrauname)
-    #jThres=5.
-    ##jThres=0.1 #for noise test only!
-    #if have_jungfrau:
-    #    jungfrau = DetObject(jungfrauname ,ds.env(), int(run), common_mode=0)
-    #    for iROI,ROI in enumerate(ROIs):
-    #        jungfrau.addROI('ROI_%d'%iROI, ROI)
-    #        jungfrau['ROI_%d'%iROI].addProj(axis=-1, thresADU=jThres)
-    #    dets.append(jungfrau)
+    epixname = 'epix_2'
+    ROI_epix = getEpixROIs()
+    have_epix = checkDet(ds.env(), epixname)
+    if have_epix:
+        epix = DetObject(epixname ,ds.env(), int(run), name=epixname,common_mode=6)
+        pjFunc = projectionFunc(axis=-1, thresADU=50., mean=True, name='thresAdu50')
+        for iROI,ROI in enumerate(ROI_epix):
+            epixROI = ROIFunc(name='ROI_%d'%iROI, ROI=ROI)
+            epixROI.addFunc(pjFunc)
+            epix.addFunc(epixROI)
+    dets.append(epix)
+
+    azIntParams = getAzIntParams()
+    ROI_epix10k2M = getEpix10k2MROIs()
+    scatterDet = 'epix10k2M'
+    haveEpix10k2M = checkDet(ds.env(), scatterDet)
+    if haveEpix10k2M:
+        epix10k2M = DetObject(scatterDet ,ds.env(), int(run), name=scatterDet, common_mode=0)
+        for iROI,ROI in enumerate(ROI_epix10k2M):
+            epix10k2M.addFunc(ROIFunc(name='ROI_%d'%iROI, ROI=ROI))
+
+        #epix10k2M.azav_eBeam=azIntParams['eBeam']
+        #if azIntParams.has_key('epix10k2M_center'):
+        #    #was phiBins=1 & Pplane=0 for first production in first shift.
+        #    azintFunc = azimuthalBinning(center=azIntParams['epix10k2M_center'], dis_to_sam=azIntParams['epix10k2M_dis_to_sam'], phiBins=11, Pplane=1)
+        #    epix10k2M.addFunc(azintFunc)
+        #epix10k2M.storeSum(sumAlgo='calib_img')
+        dets.append(epix10k2M)
 
     import time
     time0=time.time()
@@ -84,11 +122,13 @@ def runworker(args):
     sendFrequency=50 #send whenever rank has seen x events
     #took out lightStatus__xray as we only send events that are not dropped now....
     #take out l3E as we make these plots using EPICS
+    #vars_to_send=[]
     vars_to_send=['event_time','ipm2_dg2__sum','sc2slit_s',\
                   'lightStatus__laser', 'lightStatus__xray',\
-                  'ipm4__sum','ipm5__sum']
+                  'ipm4__sum','ipm5__sum', 'enc__lasDelay']
 #                      'lightStatus__laser','tt__FLTPOS','tt__AMPL','tt__ttCorr','enc__lasDelay']
-    #vars_to_send=[]
+    #vars_to_send_user=[]
+    vars_to_send_user = ['epix_2__ROI_0_thresAdu50_data', 'epix10k2M__ROI_0_sum', 'epix10k2M__ROI_1_sum']
 
     masterDict={}
     for nevent,evt in enumerate(ds.events()):
@@ -145,22 +185,10 @@ def runworker(args):
         userDict = {}
         for det in dets:
             try:
-                #this should be a plain dict. Really.
-                det.evt = dropObject()
                 det.getData(evt)
-                #datMasked = np.ma.masked_array(det.evt.dat.squeeze(), ~(det.mask.astype(bool)))
-                #print 'masked array; ',datMasked.sum()
-                if det._name=='jungfrau512k':
-                    userDict[det._name]={}
-                    det.evt.dat[det.evt.dat<jThres]=0
-                    datMasked = np.ma.masked_array(det.evt.dat.squeeze(), ~(det.mask.astype(bool)))
-                    for iROI,ROI in enumerate(ROIs):
-                        userDict[det._name]['ROI_%d'%iROI]=datMasked[ROI[1][0]:ROI[1][1],ROI[2][0]:ROI[2][1]].sum()
-                        #print 'debug roi: ',userDict[det._name]['ROI_%d'%iROI]
-                #det.processDetector()
-                #print 'processed data'
-                #userDict[det._name]=getUserData(det)
-                #print 'dict: ',userDict[det._name]
+                det.processFuncs()
+                userDict[det._name]=getUserData(det)
+                #print userDict[det._name]
             except:
                 pass
         
@@ -197,8 +225,8 @@ def runworker(args):
                         print 'why do I have this level of dict?', key, skey, userDict[key][skey].keys()
                         continue
                     varname_in_masterDict = '%s__%s'%(key, skey)
-                    #if len(vars_to_send)>0 and varname_in_masterDict not in vars_to_send:
-                    #    continue
+                    if len(vars_to_send_user)>0 and varname_in_masterDict not in vars_to_send_user:
+                        continue
                     if varname_in_masterDict not in masterDict.keys():
                         masterDict[varname_in_masterDict] = [userDict[key][skey]]
                     else:
@@ -242,11 +270,13 @@ def runworker(args):
             md=mpidata()
             #I think add a list of keys of the data dictionary to the client.
             md.addarray('nEvts',np.array([nevent]))
+            md.addarray('nEvts_sent',np.array([len(masterDict['event_time'])]))
             md.addarray('send_timeStamp', np.array(evt.get(psana.EventId).time()))
             for key in masterDict.keys():
                 md.addarray(key,np.array(masterDict[key]))
+                print 'worker: adding %s array of shape %d'%(key, len(masterDict[key]))
             md.send()
-            print 'masterDict.keys()', masterDict.keys()
+            print 'worker: masterDict.keys()', masterDict.keys()
 
             #now reset the local dictionay/lists.
             masterDict={}
