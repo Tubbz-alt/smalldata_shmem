@@ -124,7 +124,7 @@ def runworker(args):
     #vars_to_send=[]
     vars_to_send=['event_time','ipm2_dg2__sum','sc2slit_s',\
                   'lightStatus__laser', 'lightStatus__xray',\
-                  'ipm4__sum','ipm5__sum', 'enc__lasDelay']
+                  'ipm4__sum','ipm5__sum', 'enc__lasDelay', 'l3t__accept']
 #                      'lightStatus__laser','tt__FLTPOS','tt__AMPL','tt__ttCorr','enc__lasDelay']
     #vars_to_send_user=[]
     vars_to_send_user = ['epix_2__ROI_0_thresAdu50_data', 'epix10k2M__ROI_0_sum', 'epix10k2M__ROI_1_sum']

@@ -34,16 +34,16 @@ ipm_ROI:
 
 ROI_scan:
   port: 5016
-  i0var: ipm2__sum
-  sigvar: jungfrau512k__ROI_1
+  i0var: epix10k2M__ROI_0_sum
+  sigvar: epix_2__ROI_0_thresAdu50_data
   binWidth: 100
   binEntries: 50
   FilterVar:
   - lightStatus__xray
-  - ipm2__sum
+  - l3t__accept
   FilterVarMin:
   - 0.5
-  - 50
+  - 0.5
   FilterVarMax:
   - 1.5
   - 1000000.
